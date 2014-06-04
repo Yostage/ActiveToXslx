@@ -24,9 +24,17 @@ Process { if ((test-path $path) -and ( $path -match ".xl\w*$")) {
 function repro()
 { 
   ConvertFrom-XLSx $file
-  # remove first line of the CSV
+  # TODO: remove first line of the CSV
   $records = import-csv $file
   # strip out all the wrong records, which have no name?
+  $filtered = $records | ? { !(bogus-record $_)}
+}
+
+function bogus-record($rec)
+{
+  # note $records[3] is bogus
+  return ($rec.('Participant: Name') -eq "" -or
+          $rec.('Participant: Name') -eq "Participant: Name")
 }
 
 # rewrite the properties:
@@ -38,6 +46,7 @@ function write-record($rec)
   write-output "Email Address: $($rec.('Primary P/G: Email address'))"
   write-output "Child's name/DOB: $($rec.('Participant: Name')) $($rec.('Participant: Date of birth'))"
   write-output "Class: $($rec.('Session name'))"
+  write-output ""
   # todo: class, date of registration   
 }
 
