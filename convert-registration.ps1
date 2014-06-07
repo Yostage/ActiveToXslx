@@ -3,16 +3,22 @@ function ConvertFrom-XLSx {
                          ValueFromPipeline=$true, 
            ValueFromPipelineByPropertyName=$true)]
          [string]$path , 
+         [string]$savePath,
          [switch]$PassThru
         )
 
   begin { $objExcel = New-Object -ComObject Excel.Application }
-Process { if ((test-path $path) -and ( $path -match ".xl\w*$")) {
-                    $path = (resolve-path -Path $path).path 
+Process { if ((test-path $path) -and ( $path -match ".xl\w*$")) 
+          {
+              $path = (resolve-path -Path $path).path 
+              if ($savePath -eq "")
+              {
                 $savePath = $path -replace ".xl\w*$",".csv"
+              }
               $objworkbook=$objExcel.Workbooks.Open( $path)
               $objworkbook.SaveAs($savePath,6) # 6 is the code for .CSV 
               $objworkbook.Close($false) 
+           
               if ($PassThru) {Import-Csv -Path $savePath } 
           }
           else {Write-Host "$path : not found"} 
@@ -23,11 +29,42 @@ Process { if ((test-path $path) -and ( $path -match ".xl\w*$")) {
 
 function repro()
 { 
-  ConvertFrom-XLSx $file
-  # TODO: remove first line of the CSV
-  $records = import-csv $file
+  $ErrorActionPreference = "Stop"
+
+  $candidates = dir  -filter *.xlsx
+  if ($candidates.count -gt 1) { throw "too many XLSX files, need only one"}
+  if ($candidates.count -lt 1) { throw "couldn't find any XLSX files here"}
+  # now we know there's only one
+  $candidate = $candidates
+  write-host -foreground green "Converting files [$candidate]"
+  #$outcsv = "registrationOut.csv"
+  # convert and canonicalize
+  $candidate = (resolve-path $candidate).path
+
+  $outCsv = [system.io.path]::ChangeExtension($candidate, "csv")
+
+  if (test-path $outcsv) { remove-item $outcsv }
+
+  # convert to CSV
+  ConvertFrom-XLSx -path $candidate -savepath $outCsv
+
+  $lines = gc $outCsv
+  write-host -foreground green "Read in $($lines.count) lines"  
+  # remove the first, bogusest, line and convert to records
+  $lines = $lines | select -skip 1
+  
+  # we have to save it to a file so that we can split across the line breaks
+  $lines > $outCsv
+  $records = import-csv $outCsv
+  write-host -foreground green "Converted to $($records.count) records"
+
   # strip out all the wrong records, which have no name?
   $filtered = $records | ? { !(bogus-record $_)}
+  write-host -foreground green "Filtered down to $($filtered.count) records"
+
+  $filtered > records.txt
+
+  &notepad records.txt
 }
 
 function bogus-record($rec)
@@ -50,3 +87,4 @@ function write-record($rec)
   # todo: class, date of registration   
 }
 
+repro
