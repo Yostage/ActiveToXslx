@@ -31,9 +31,14 @@ function repro()
 { 
   $ErrorActionPreference = "Stop"
 
-  $candidates = dir  -filter *.xlsx
+  write-host -foreground green "Scanning for files in [$(get-location)]"
+
+  # make sure to force it into an array in case there's only one
+  $candidates = @(dir -filter *.xlsx)
+  write-host -foreground green "Found [$($candidates.count)] XLSX files"
   if ($candidates.count -gt 1) { throw "too many XLSX files, need only one"}
   if ($candidates.count -lt 1) { throw "couldn't find any XLSX files here"}
+
   # now we know there's only one
   $candidate = $candidates
   write-host -foreground green "Converting files [$candidate]"
