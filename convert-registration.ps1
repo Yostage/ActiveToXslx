@@ -67,7 +67,7 @@ function repro()
   $filtered = $records | ? { !(bogus-record $_)}
   write-host -foreground green "Filtered down to $($filtered.count) records"
 
-  $filtered > records.txt
+  $filtered | % { write-record $_ } > records.txt
 
   &notepad records.txt
 }
